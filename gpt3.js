@@ -1,6 +1,3 @@
-// EDIT: moved these to top of the page
-const { request, response } = require('express'); // you don't need this, express is for server side apps
-const got = require('got');
 
 //listen for forwarded message from content (arriving thru background)
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
@@ -32,6 +29,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 // when the file was loaded. I created getCompletion, an async function that
 // you can call when yoou need to get a completion for the prompt.
 async function getCompletion(prompt) {
+    console.log(prompt);
     const url = 'https://api.openai.com/v1/engines/davinci/completions';
     const params = {
       "prompt": prompt,
@@ -40,17 +38,28 @@ async function getCompletion(prompt) {
       "frequency_penalty": 0.5
     };
     const headers = {
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json', // added this to support fetch
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
     };
   
     try {
-      const response = await got.post(url, { json: params, headers: headers }).json();
-      output = `${prompt}${response.choices[0].text}`;
-      console.log(output);
-      return [true, output];
+        // I would recommend using fetch here instead of 3rd party libraries just for simplicity.
+        // OLD: const response = await got.post(url, { json: params, headers: headers }).json();
+        // read more here: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+        const res = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(params)
+        });
+        const response = await res.json();
+        console.log(response);
+        // TODO: you should check to make sure 'choices' exists in the response, error responses have the 'error' key
+        output = `${prompt}${response.choices[0].text}`;
+        console.log(output);
+        return [true, output];
     } catch (err) {
-      console.log(err);
-      return [false, null];
+        console.log(err);
+        return [false, null];
     }
 }
 
